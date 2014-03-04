@@ -193,4 +193,6 @@ uint32_t uesb_get_clear_interrupts(uint32_t *interrupts);
 
 uint32_t uesb_set_address(uesb_address_type_t address, const uint8_t *data_ptr);
 
+uint32_t uesb_set_rf_channel(uint32_t channel);
+
 #endif

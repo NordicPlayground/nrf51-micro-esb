@@ -60,33 +60,21 @@ static uesb_mainstate_t         m_uesb_mainstate        = UESB_STATE_UNINITIALIZ
     uint16_t                retransmit_delay;
     uint16_t                retransmit_count;*/
 
-void on_radio_disabled_esb_dpl_tx_noack(void);
-void on_radio_disabled_esb_dpl_tx(void);
-void on_radio_disabled_esb_dpl_tx_wait_for_ack(void);
-
-static uint32_t bytewise_bitswap(uint32_t inp);
+static void on_radio_disabled_esb_dpl_tx_noack(void);
+static void on_radio_disabled_esb_dpl_tx(void);
+static void on_radio_disabled_esb_dpl_tx_wait_for_ack(void);
 
 static uint32_t swap_bits(uint32_t inp)
 {
-    uint32_t i;
-    uint32_t retval = 0;
-    
-    inp = (inp & 0x000000FFUL);
-    
-    for(i = 0; i < 8; i++)
-    {
-        retval |= ((inp >> i) & 0x01) << (7 - i);     
-    }
-    return retval;    
+    inp = (inp & 0x000000F0) >> 4 | (inp & 0x0000000F) << 4;
+    inp = (inp & 0x000000CC) >> 2 | (inp & 0x00000033) << 2;
+    return (inp & 0x000000AA) >> 1 | (inp & 0x00000055) << 1;
 }
 
-void update_radio_parameters()
+static void update_radio_parameters()
 {
     // TX power
     NRF_RADIO->TXPOWER   = m_config_local.tx_output_power   << RADIO_TXPOWER_TXPOWER_Pos;
-    
-    // RF frequency/channel
-    NRF_RADIO->FREQUENCY = m_config_local.rf_channel        << RADIO_FREQUENCY_FREQUENCY_Pos;
     
     // RF bitrate
     NRF_RADIO->MODE      = m_config_local.bitrate           << RADIO_MODE_MODE_Pos;
@@ -139,7 +127,7 @@ void update_radio_parameters()
     
 // FIFO HANDLING --------------------------
 
-void initialize_fifos()
+static void initialize_fifos()
 {
     m_tx_fifo.entry_point   = 0;
     m_tx_fifo.exit_point    = 0;
@@ -160,7 +148,7 @@ void initialize_fifos()
     }
 }
 
-void tx_fifo_remove_last()
+static void tx_fifo_remove_last()
 {
     if(m_tx_fifo.count > 0)
     {
@@ -172,7 +160,7 @@ void tx_fifo_remove_last()
     }
 }
 
-bool rx_fifo_push_rfbuf()
+static bool rx_fifo_push_rfbuf()
 {
     if(m_rx_fifo.count < UESB_CORE_RX_FIFO_SIZE && m_rx_payload_buffer[0] <= UESB_CORE_MAX_PAYLOAD_LENGTH)
     {
@@ -189,7 +177,7 @@ bool rx_fifo_push_rfbuf()
 
 // 
 
-void sys_timer_init()
+static void sys_timer_init()
 {
     // Configure the system timer with a 1 MHz base frequency
     UESB_SYS_TIMER->PRESCALER = 4;
@@ -197,7 +185,7 @@ void sys_timer_init()
     UESB_SYS_TIMER->SHORTS    = TIMER_SHORTS_COMPARE1_CLEAR_Msk | TIMER_SHORTS_COMPARE1_STOP_Msk;
 }
 
-void ppi_init()
+static void ppi_init()
 {
     NRF_PPI->CH[UESB_PPI_TIMER_START].EEP = (uint32_t)&NRF_RADIO->EVENTS_READY;
     NRF_PPI->CH[UESB_PPI_TIMER_START].TEP = (uint32_t)&UESB_SYS_TIMER->TASKS_START;
@@ -227,7 +215,7 @@ uint32_t uesb_init(uesb_config_t *parameters, uesb_event_handler_t event_handler
     return UESB_SUCCESS;
 }
 
-void start_tx_transaction(bool ack)
+static void start_tx_transaction(bool ack)
 {
     // Prepare the payload
     current_payload = m_tx_fifo.payload_ptr[m_tx_fifo.exit_point];
@@ -279,6 +267,8 @@ void start_tx_transaction(bool ack)
     
     NRF_RADIO->TXADDRESS = current_payload->pipe;
     NRF_RADIO->RXADDRESSES = 1 << current_payload->pipe;
+    
+    NRF_RADIO->FREQUENCY = m_config_local.rf_channel;
     
     NRF_RADIO->PACKETPTR = (uint32_t)m_tx_payload_buffer;
 
@@ -333,6 +323,7 @@ uint32_t uesb_start_tx()
 
 uint32_t uesb_flush_tx(void)
 {
+    if(m_uesb_mainstate != UESB_STATE_IDLE) return UESB_ERROR_NOT_IDLE;
     DISABLE_RF_IRQ;
     m_tx_fifo.count = 0;
     m_tx_fifo.entry_point = m_tx_fifo.exit_point = 0;
@@ -393,6 +384,12 @@ uint32_t uesb_set_address(uesb_address_type_t address, const uint8_t *data_ptr)
     return UESB_SUCCESS;
 }
 
+uint32_t uesb_set_rf_channel(uint32_t channel)
+{
+    if(channel > 125) return UESB_ERROR_INVALID_PARAMETERS;
+    m_config_local.rf_channel = channel;
+    return UESB_SUCCESS;
+}
 
 void RADIO_IRQHandler()
 {
@@ -426,15 +423,15 @@ void RADIO_IRQHandler()
     DEBUG_PIN_CLR(DEBUGPIN3);
 }
 
-void on_radio_disabled_esb_dpl_tx_noack()
+static void on_radio_disabled_esb_dpl_tx_noack()
 {
     m_interrupt_flags |= UESB_INT_TX_SUCCESS_MSK;
     tx_fifo_remove_last();
+    m_uesb_mainstate = UESB_STATE_IDLE;  
     if(m_event_handler != 0) m_event_handler();
-    m_uesb_mainstate = UESB_STATE_IDLE;    
 }
 
-void on_radio_disabled_esb_dpl_tx()
+static void on_radio_disabled_esb_dpl_tx()
 {
     // Remove the DISABLED -> RXEN shortcut, to make sure the radio stays disabled after the RX window
     NRF_RADIO->SHORTS           = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
@@ -458,7 +455,7 @@ void on_radio_disabled_esb_dpl_tx()
     m_uesb_mainstate            = UESB_STATE_PTX_RX_ACK;    
 }
 
-void on_radio_disabled_esb_dpl_tx_wait_for_ack()
+static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
 {
     // This marks the completion of a TX_RX sequence (TX with ACK)
 
@@ -478,8 +475,8 @@ void on_radio_disabled_esb_dpl_tx_wait_for_ack()
                 m_interrupt_flags |= UESB_INT_RX_DR_MSK;
             }         
         }
+        m_uesb_mainstate = UESB_STATE_IDLE;   
         if(m_event_handler != 0) m_event_handler();
-        m_uesb_mainstate = UESB_STATE_IDLE;                
     }
     else
     {
@@ -489,8 +486,8 @@ void on_radio_disabled_esb_dpl_tx_wait_for_ack()
             UESB_SYS_TIMER->TASKS_STOP = 1;
             // All retransmits are expended, and the TX operation is suspended
             m_interrupt_flags |= UESB_INT_TX_FAILED_MSK;
+            m_uesb_mainstate = UESB_STATE_IDLE;    
             if(m_event_handler != 0) m_event_handler();
-            m_uesb_mainstate = UESB_STATE_IDLE;                    
         }
         else
         {
@@ -506,9 +503,9 @@ void on_radio_disabled_esb_dpl_tx_wait_for_ack()
                                    (current_payload->length         << RADIO_PCNF1_STATLEN_Pos) |
                                    (current_payload->length         << RADIO_PCNF1_MAXLEN_Pos);
             }
+            NRF_RADIO->PACKETPTR = (uint32_t)m_tx_payload_buffer;
             m_uesb_mainstate = UESB_STATE_PTX_TX_ACK;
         }
     }
-    NRF_RADIO->PACKETPTR        = (uint32_t)m_tx_payload_buffer;
 }
 

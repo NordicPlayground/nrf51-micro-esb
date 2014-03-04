@@ -45,7 +45,7 @@ void uesb_event_handler()
     if(rf_interrupts & UESB_INT_RX_DR_MSK)
     {
         uesb_read_rx_payload(&rx_payload);
-        NRF_GPIO->OUTCLR = (uint32_t)(0xFF << 24);
+        NRF_GPIO->OUTCLR = 0xFFUL << 24;
         NRF_GPIO->OUTSET = (uint32_t)(rx_payload.data[2] << 24);
     }
 }
@@ -62,7 +62,7 @@ int main(void)
     while(NRF_CLOCK->EVENTS_HFCLKSTARTED == 0);
 
     uesb_config_t uesb_config       = UESB_DEFAULT_CONFIG;
-    uesb_config.rf_channel          = 2;
+    uesb_config.rf_channel          = 5;
     uesb_config.crc                 = UESB_CRC_16BIT;
     uesb_config.retransmit_count    = 8;
     uesb_config.retransmit_delay    = 250;
@@ -82,6 +82,8 @@ int main(void)
     tx_payload.data[2] = 0x00;
     tx_payload.data[3] = 0x00;
     tx_payload.data[4] = 0x11;
+    
+    uesb_set_rf_channel(2);
     
     while (true)
     {   
