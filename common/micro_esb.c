@@ -25,6 +25,8 @@ static  uint8_t                 m_rx_payload_buffer[UESB_CORE_MAX_PAYLOAD_LENGTH
 static volatile uint32_t        m_interrupt_flags       = 0;
 static uint32_t                 m_pid                   = 0;
 static volatile uint32_t        m_retransmits_remaining;
+static volatile uint32_t        m_last_tx_retransmit_attempts = 0;
+
 static uesb_payload_t           *current_payload;
 
 static uesb_mainstate_t         m_uesb_mainstate        = UESB_STATE_UNINITIALIZED;
@@ -135,7 +137,6 @@ static void initialize_fifos()
     for(int i = 0; i < UESB_CORE_TX_FIFO_SIZE; i++)
     {
         m_tx_fifo.payload_ptr[i]       = &m_tx_fifo_payload[i];
-        m_tx_fifo.location_occupied[i] = false;
     }
     
     m_rx_fifo.entry_point   = 0;
@@ -144,7 +145,6 @@ static void initialize_fifos()
     for(int i = 0; i < UESB_CORE_RX_FIFO_SIZE; i++)
     {
         m_rx_fifo.payload_ptr[i]       = &m_rx_fifo_payload[i];
-        m_rx_fifo.location_occupied[i] = false;
     }
 }
 
@@ -160,13 +160,14 @@ static void tx_fifo_remove_last()
     }
 }
 
-static bool rx_fifo_push_rfbuf()
+static bool rx_fifo_push_rfbuf(uint8_t pipe)
 {
     if(m_rx_fifo.count < UESB_CORE_RX_FIFO_SIZE && m_rx_payload_buffer[0] <= UESB_CORE_MAX_PAYLOAD_LENGTH)
     {
         DISABLE_RF_IRQ;
         m_rx_fifo.payload_ptr[m_rx_fifo.entry_point]->length = m_rx_payload_buffer[0];
         memcpy(m_rx_fifo.payload_ptr[m_rx_fifo.entry_point]->data, &m_rx_payload_buffer[2], m_rx_payload_buffer[0]); 
+        m_rx_fifo.payload_ptr[m_rx_fifo.entry_point]->pipe = pipe;
         if(++m_rx_fifo.entry_point >= UESB_CORE_RX_FIFO_SIZE) m_rx_fifo.entry_point = 0;
         m_rx_fifo.count++;
         ENABLE_RF_IRQ;
@@ -212,6 +213,14 @@ uint32_t uesb_init(uesb_config_t *parameters, uesb_event_handler_t event_handler
     //m_uesb_initialized = true;
     m_uesb_mainstate = UESB_STATE_IDLE;
     
+    return UESB_SUCCESS;
+}
+
+uint32_t uesb_disable(void)
+{
+    if(m_uesb_mainstate != UESB_STATE_IDLE) return UESB_ERROR_NOT_IDLE;
+    NRF_PPI->CHENCLR = (1 << UESB_PPI_TIMER_START) | (1 << UESB_PPI_TIMER_STOP) | (1 << UESB_PPI_RX_TIMEOUT) | (1 << UESB_PPI_TX_START);
+    m_uesb_mainstate = UESB_STATE_UNINITIALIZED;
     return UESB_SUCCESS;
 }
 
@@ -306,6 +315,7 @@ uint32_t uesb_read_rx_payload(uesb_payload_t *payload)
     
     DISABLE_RF_IRQ;
     payload->length = m_rx_fifo.payload_ptr[m_rx_fifo.exit_point]->length;
+    payload->pipe   = m_rx_fifo.payload_ptr[m_rx_fifo.exit_point]->pipe;
     memcpy(payload->data, m_rx_fifo.payload_ptr[m_rx_fifo.exit_point]->data, payload->length);
     if(++m_rx_fifo.exit_point >= UESB_CORE_RX_FIFO_SIZE) m_rx_fifo.exit_point = 0;
     m_rx_fifo.count--;
@@ -319,6 +329,13 @@ uint32_t uesb_start_tx()
     if(m_tx_fifo.count == 0) return UESB_ERROR_TX_FIFO_EMPTY;
     start_tx_transaction(true);
     return UESB_SUCCESS;    
+}
+
+uint32_t uesb_get_tx_attempts(uint32_t *attempts)
+{
+    if(m_uesb_mainstate == UESB_STATE_UNINITIALIZED) return UESB_ERROR_NOT_INITIALIZED;
+    *attempts = m_last_tx_retransmit_attempts;
+    return UESB_SUCCESS;
 }
 
 uint32_t uesb_flush_tx(void)
@@ -351,6 +368,7 @@ uint32_t uesb_get_clear_interrupts(uint32_t *interrupts)
 
 uint32_t uesb_set_address(uesb_address_type_t address, const uint8_t *data_ptr)
 {
+    if(m_uesb_mainstate != UESB_STATE_IDLE) return UESB_ERROR_NOT_IDLE;
     switch(address)
     {
         case UESB_ADDRESS_PIPE0:
@@ -398,7 +416,7 @@ void RADIO_IRQHandler()
         NRF_RADIO->EVENTS_READY = 0;
         DEBUG_PIN_SET(DEBUGPIN1);
     }
-    
+   
     if(NRF_RADIO->EVENTS_DISABLED && (NRF_RADIO->INTENSET & RADIO_INTENSET_DISABLED_Msk))
     {
         NRF_RADIO->EVENTS_DISABLED = 0;
@@ -467,10 +485,11 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
     {
         UESB_SYS_TIMER->TASKS_STOP = 1;
         m_interrupt_flags |= UESB_INT_TX_SUCCESS_MSK;
+        m_last_tx_retransmit_attempts = m_config_local.retransmit_count - m_retransmits_remaining + 1;
         tx_fifo_remove_last();
         if(m_rx_payload_buffer[0] > 0)
         {
-            if(rx_fifo_push_rfbuf())
+            if(rx_fifo_push_rfbuf((uint8_t)NRF_RADIO->TXADDRESS))
             {
                 m_interrupt_flags |= UESB_INT_RX_DR_MSK;
             }         
@@ -480,8 +499,7 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
     }
     else
     {
-        m_retransmits_remaining--;
-        if(m_retransmits_remaining == 0)
+        if(m_retransmits_remaining-- == 0)
         {
             UESB_SYS_TIMER->TASKS_STOP = 1;
             // All retransmits are expended, and the TX operation is suspended

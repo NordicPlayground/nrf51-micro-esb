@@ -11,8 +11,14 @@
 #define DEBUGPIN2   9
 #define DEBUGPIN3   10
 #define DEBUGPIN4   11
+
+#ifdef  DEBUG
 #define DEBUG_PIN_SET(a)    (NRF_GPIO->OUTSET = (1 << (a)))
 #define DEBUG_PIN_CLR(a)    (NRF_GPIO->OUTCLR = (1 << (a)))
+#else
+#define DEBUG_PIN_SET(a)    
+#define DEBUG_PIN_CLR(a)
+#endif
 
 // Hard coded parameters - change if necessary
 #define     UESB_CORE_MAX_PAYLOAD_LENGTH    32
@@ -116,9 +122,8 @@ typedef struct
     
 }uesb_config_t;
 
-// Default radio parameters, roughly equal to nRF24L default parameters (except CRC which is set to 16-bit)
-#define UESB_DEFAULT_CONFIG {.protocol = UESB_PROTOCOL_ESB,                             \
-                             .mode                  = UESB_MODE_PTX,                    \
+// Default radio parameters, roughly equal to nRF24L default parameters (except CRC which is set to 16-bit, and protocol set to DPL)
+#define UESB_DEFAULT_CONFIG {.mode                  = UESB_MODE_PTX,                    \
                              .protocol              = UESB_PROTOCOL_ESB_DPL,            \
                              .rf_channel            = 2,                                \
                              .payload_length        = 32,                               \
@@ -160,7 +165,6 @@ typedef struct
 typedef struct
 {
     uesb_payload_t *payload_ptr[UESB_CORE_TX_FIFO_SIZE];
-    bool            location_occupied[UESB_CORE_TX_FIFO_SIZE];
     uint32_t        entry_point;
     uint32_t        exit_point;
     uint32_t        count;    
@@ -169,7 +173,6 @@ typedef struct
 typedef struct
 {
     uesb_payload_t *payload_ptr[UESB_CORE_RX_FIFO_SIZE];
-    bool            location_occupied[UESB_CORE_RX_FIFO_SIZE];
     uint32_t        entry_point;
     uint32_t        exit_point;
     uint32_t        count;    
@@ -179,11 +182,15 @@ typedef void (*uesb_event_handler_t)(void);
 
 uint32_t uesb_init(uesb_config_t *parameters, uesb_event_handler_t event_handler);
 
+uint32_t uesb_disable(void);
+
 uint32_t uesb_write_tx_payload(uesb_payload_t *payload);
 
 uint32_t uesb_read_rx_payload(uesb_payload_t *payload);
 
 uint32_t uesb_start_tx(void);
+
+uint32_t uesb_get_tx_attempts(uint32_t *attempts);
 
 uint32_t uesb_flush_tx(void);
 

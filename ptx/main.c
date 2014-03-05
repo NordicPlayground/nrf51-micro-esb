@@ -31,12 +31,16 @@ static uesb_payload_t tx_payload, rx_payload;
 
 void uesb_event_handler()
 {
-    uint32_t rf_interrupts;
+    static uint32_t rf_interrupts;
+    static uint32_t tx_attempts;
     
     uesb_get_clear_interrupts(&rf_interrupts);
     
     if(rf_interrupts & UESB_INT_TX_SUCCESS_MSK)
     {   
+        uesb_get_tx_attempts(&tx_attempts);
+        NRF_GPIO->OUTCLR = 0xFUL << 28;
+        NRF_GPIO->OUTSET = (tx_attempts & 0x0F) << 28;
     }
     if(rf_interrupts & UESB_INT_TX_FAILED_MSK)
     {
@@ -45,8 +49,8 @@ void uesb_event_handler()
     if(rf_interrupts & UESB_INT_RX_DR_MSK)
     {
         uesb_read_rx_payload(&rx_payload);
-        NRF_GPIO->OUTCLR = 0xFFUL << 24;
-        NRF_GPIO->OUTSET = (uint32_t)(rx_payload.data[2] << 24);
+        NRF_GPIO->OUTCLR = 0xFUL << 24;
+        NRF_GPIO->OUTSET = (uint32_t)((rx_payload.data[2] & 0x0F) << 24);
     }
 }
 
@@ -91,7 +95,7 @@ int main(void)
         {
             tx_payload.data[1]++;
         }
-
+        nrf_delay_us(10000);
     }
 }
 
