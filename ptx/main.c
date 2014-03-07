@@ -38,9 +38,6 @@ void uesb_event_handler()
     
     if(rf_interrupts & UESB_INT_TX_SUCCESS_MSK)
     {   
-        uesb_get_tx_attempts(&tx_attempts);
-        NRF_GPIO->OUTCLR = 0xFUL << 28;
-        NRF_GPIO->OUTSET = (tx_attempts & 0x0F) << 28;
     }
     if(rf_interrupts & UESB_INT_TX_FAILED_MSK)
     {
@@ -52,6 +49,9 @@ void uesb_event_handler()
         NRF_GPIO->OUTCLR = 0xFUL << 24;
         NRF_GPIO->OUTSET = (uint32_t)((rx_payload.data[2] & 0x0F) << 24);
     }
+    uesb_get_tx_attempts(&tx_attempts);
+    NRF_GPIO->OUTCLR = 0xFUL << 28;
+    NRF_GPIO->OUTSET = (tx_attempts & 0x0F) << 28;
 }
 
 int main(void)
@@ -68,8 +68,9 @@ int main(void)
     uesb_config_t uesb_config       = UESB_DEFAULT_CONFIG;
     uesb_config.rf_channel          = 5;
     uesb_config.crc                 = UESB_CRC_16BIT;
-    uesb_config.retransmit_count    = 8;
+    uesb_config.retransmit_count    = 6;
     uesb_config.retransmit_delay    = 250;
+    uesb_config.dynamic_ack_enabled = 0;
     uesb_config.protocol            = UESB_PROTOCOL_ESB_DPL;
     uesb_config.bitrate             = UESB_BITRATE_2MBPS;
     
@@ -80,14 +81,12 @@ int main(void)
     uesb_set_address(UESB_ADDRESS_PIPE2, &rx_addr_p2);
 
     tx_payload.length  = 8;
-    tx_payload.pipe    = 2;
+    tx_payload.pipe    = 0;
     tx_payload.data[0] = 0x01;
     tx_payload.data[1] = 0x00;
     tx_payload.data[2] = 0x00;
     tx_payload.data[3] = 0x00;
     tx_payload.data[4] = 0x11;
-    
-    uesb_set_rf_channel(2);
     
     while (true)
     {   

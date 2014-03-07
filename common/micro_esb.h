@@ -12,7 +12,7 @@
 #define DEBUGPIN3   10
 #define DEBUGPIN4   11
 
-#ifdef  DEBUG
+#ifdef  UESB_DEBUG
 #define DEBUG_PIN_SET(a)    (NRF_GPIO->OUTSET = (1 << (a)))
 #define DEBUG_PIN_CLR(a)    (NRF_GPIO->OUTCLR = (1 << (a)))
 #else
@@ -159,6 +159,7 @@ typedef struct
     uint8_t length;
     uint8_t pipe;
     int8_t  rssi;
+    uint8_t noack;
     uint8_t data[UESB_CORE_MAX_PAYLOAD_LENGTH];
 }uesb_payload_t;
 
@@ -185,6 +186,8 @@ uint32_t uesb_init(uesb_config_t *parameters, uesb_event_handler_t event_handler
 uint32_t uesb_disable(void);
 
 uint32_t uesb_write_tx_payload(uesb_payload_t *payload);
+
+uint32_t uesb_write_tx_payload_noack(uesb_payload_t *payload);
 
 uint32_t uesb_read_rx_payload(uesb_payload_t *payload);
 

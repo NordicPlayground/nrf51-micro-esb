@@ -25,7 +25,7 @@ static  uint8_t                 m_rx_payload_buffer[UESB_CORE_MAX_PAYLOAD_LENGTH
 static volatile uint32_t        m_interrupt_flags       = 0;
 static uint32_t                 m_pid                   = 0;
 static volatile uint32_t        m_retransmits_remaining;
-static volatile uint32_t        m_last_tx_retransmit_attempts = 0;
+static volatile uint32_t        m_last_tx_attempts;
 
 static uesb_payload_t           *current_payload;
 
@@ -131,20 +131,20 @@ static void update_radio_parameters()
 
 static void initialize_fifos()
 {
-    m_tx_fifo.entry_point   = 0;
-    m_tx_fifo.exit_point    = 0;
-    m_tx_fifo.count         = 0;
+    m_tx_fifo.entry_point = 0;
+    m_tx_fifo.exit_point  = 0;
+    m_tx_fifo.count       = 0;
     for(int i = 0; i < UESB_CORE_TX_FIFO_SIZE; i++)
     {
-        m_tx_fifo.payload_ptr[i]       = &m_tx_fifo_payload[i];
+        m_tx_fifo.payload_ptr[i] = &m_tx_fifo_payload[i];
     }
     
-    m_rx_fifo.entry_point   = 0;
-    m_rx_fifo.exit_point    = 0;
-    m_rx_fifo.count         = 0;
+    m_rx_fifo.entry_point = 0;
+    m_rx_fifo.exit_point  = 0;
+    m_rx_fifo.count       = 0;
     for(int i = 0; i < UESB_CORE_RX_FIFO_SIZE; i++)
     {
-        m_rx_fifo.payload_ptr[i]       = &m_rx_fifo_payload[i];
+        m_rx_fifo.payload_ptr[i] = &m_rx_fifo_payload[i];
     }
 }
 
@@ -224,8 +224,10 @@ uint32_t uesb_disable(void)
     return UESB_SUCCESS;
 }
 
-static void start_tx_transaction(bool ack)
+static void start_tx_transaction()
 {
+    static bool ack;
+    m_last_tx_attempts = 1;
     // Prepare the payload
     current_payload = m_tx_fifo.payload_ptr[m_tx_fifo.exit_point];
     m_pid = (m_pid + 1) % 4;
@@ -251,8 +253,9 @@ static void start_tx_transaction(bool ack)
                 m_uesb_mainstate = UESB_STATE_PTX_TX_ACK; 
             break;
         case UESB_PROTOCOL_ESB_DPL:
+            ack = current_payload->noack == 0 || m_config_local.dynamic_ack_enabled == 0;
             m_tx_payload_buffer[0] = current_payload->length;
-            m_tx_payload_buffer[1] = m_pid << 1;
+            m_tx_payload_buffer[1] = m_pid << 1 | ((current_payload->noack == 0 && m_config_local.dynamic_ack_enabled) ? 0x01 : 0x00);
             if(ack)
             {
                 NRF_RADIO->SHORTS      = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk | RADIO_SHORTS_DISABLED_RXEN_Msk;
@@ -289,12 +292,14 @@ static void start_tx_transaction(bool ack)
     NRF_RADIO->TASKS_TXEN  = 1;       
 }
 
-uint32_t uesb_write_tx_payload(uesb_payload_t *payload)
+static uint32_t write_tx_payload(uesb_payload_t *payload, bool noack)
 {
     if(m_uesb_mainstate == UESB_STATE_UNINITIALIZED) return UESB_ERROR_NOT_INITIALIZED;
     if(m_tx_fifo.count >= UESB_CORE_TX_FIFO_SIZE) return UESB_ERROR_TX_FIFO_FULL;
-    
+        
     DISABLE_RF_IRQ;
+    if(noack && m_config_local.dynamic_ack_enabled) payload->noack = 1;
+    else payload->noack = 0;
     memcpy(m_tx_fifo.payload_ptr[m_tx_fifo.entry_point], payload, sizeof(uesb_payload_t));
     m_tx_fifo.entry_point++;
     if(m_tx_fifo.entry_point >= UESB_CORE_TX_FIFO_SIZE) m_tx_fifo.entry_point = 0;
@@ -303,9 +308,20 @@ uint32_t uesb_write_tx_payload(uesb_payload_t *payload)
     
     if(m_config_local.tx_mode == UESB_TXMODE_AUTO && m_uesb_mainstate == UESB_STATE_IDLE)
     {
-        start_tx_transaction(true);
-    }
+        start_tx_transaction();
+    }    
     return UESB_SUCCESS;
+}
+
+uint32_t uesb_write_tx_payload(uesb_payload_t *payload)
+{
+    return write_tx_payload(payload, false);
+}
+
+uint32_t uesb_write_tx_payload_noack(uesb_payload_t *payload)
+{
+    if(m_config_local.dynamic_ack_enabled == 0) return UESB_ERROR_DYN_ACK_NOT_ENABLED;
+    return write_tx_payload(payload, true);
 }
 
 uint32_t uesb_read_rx_payload(uesb_payload_t *payload)
@@ -320,6 +336,7 @@ uint32_t uesb_read_rx_payload(uesb_payload_t *payload)
     if(++m_rx_fifo.exit_point >= UESB_CORE_RX_FIFO_SIZE) m_rx_fifo.exit_point = 0;
     m_rx_fifo.count--;
     ENABLE_RF_IRQ;
+    
     return UESB_SUCCESS;    
 }
 
@@ -327,14 +344,14 @@ uint32_t uesb_start_tx()
 {
     if(m_uesb_mainstate != UESB_STATE_IDLE) return UESB_ERROR_NOT_IDLE;
     if(m_tx_fifo.count == 0) return UESB_ERROR_TX_FIFO_EMPTY;
-    start_tx_transaction(true);
+    start_tx_transaction();
     return UESB_SUCCESS;    
 }
 
 uint32_t uesb_get_tx_attempts(uint32_t *attempts)
 {
     if(m_uesb_mainstate == UESB_STATE_UNINITIALIZED) return UESB_ERROR_NOT_INITIALIZED;
-    *attempts = m_last_tx_retransmit_attempts;
+    *attempts = m_last_tx_attempts;
     return UESB_SUCCESS;
 }
 
@@ -485,7 +502,7 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
     {
         UESB_SYS_TIMER->TASKS_STOP = 1;
         m_interrupt_flags |= UESB_INT_TX_SUCCESS_MSK;
-        m_last_tx_retransmit_attempts = m_config_local.retransmit_count - m_retransmits_remaining + 1;
+        m_last_tx_attempts = m_config_local.retransmit_count - m_retransmits_remaining + 1;
         tx_fifo_remove_last();
         if(m_rx_payload_buffer[0] > 0)
         {
@@ -504,6 +521,7 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
             UESB_SYS_TIMER->TASKS_STOP = 1;
             // All retransmits are expended, and the TX operation is suspended
             m_interrupt_flags |= UESB_INT_TX_FAILED_MSK;
+            m_last_tx_attempts = m_config_local.retransmit_count + 1;
             m_uesb_mainstate = UESB_STATE_IDLE;    
             if(m_event_handler != 0) m_event_handler();
         }

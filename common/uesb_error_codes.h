@@ -8,6 +8,7 @@
 #define     UESB_ERROR_TX_FIFO_FULL         0x04
 #define     UESB_ERROR_TX_FIFO_EMPTY        0x05
 #define     UESB_ERROR_RX_FIFO_EMPTY        0x06
+#define     UESB_ERROR_DYN_ACK_NOT_ENABLED  0x07
 
 
 #endif
