@@ -10,6 +10,10 @@ The main benefits of this library over the official one are:
 
 The library can be used with or without a SoftDevice.
 
+KNOWN LIMITATIONS:
+- Shockburst mode not supported, Enhanced Shockburst only
+- The PRX can not send ACK payloads, but the PTX can receive them (when using an nRF24L based PRX)
+
 Requirements
 ------------
 - nRF51 SDK version 5.1.0

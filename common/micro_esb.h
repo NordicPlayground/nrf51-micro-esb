@@ -84,7 +84,9 @@ typedef enum {
     UESB_STATE_IDLE, 
     UESB_STATE_PTX_TX, 
     UESB_STATE_PTX_TX_ACK, 
-    UESB_STATE_PTX_RX_ACK
+    UESB_STATE_PTX_RX_ACK,
+    UESB_STATE_PRX,
+    UESB_STATE_PRX_SEND_ACK
 } uesb_mainstate_t;
 
 // Main UESB configuration struct, contains all radio parameters
@@ -109,7 +111,8 @@ typedef struct
     uint8_t                 rx_address_p4;
     uint8_t                 rx_address_p5; 
     uint8_t                 rx_address_p6;
-    uint8_t                 rx_address_p7;      
+    uint8_t                 rx_address_p7; 
+    uint8_t                 rx_pipes_enabled;
 
     // ESB specific features
     uint8_t                 dynamic_payload_length_enabled;
@@ -139,6 +142,7 @@ typedef struct
                              .rx_address_p5         = 0xC6,                             \
                              .rx_address_p6         = 0xC7,                             \
                              .rx_address_p7         = 0xC8,                             \
+                             .rx_pipes_enabled      = 0x3F,                             \
                              .dynamic_payload_length_enabled = 1,                       \
                              .dynamic_ack_enabled   = 0,                                \
                              .retransmit_delay      = 250,                              \
@@ -192,6 +196,8 @@ uint32_t uesb_write_tx_payload_noack(uesb_payload_t *payload);
 uint32_t uesb_read_rx_payload(uesb_payload_t *payload);
 
 uint32_t uesb_start_tx(void);
+
+uint32_t uesb_start_rx(void);
 
 uint32_t uesb_get_tx_attempts(uint32_t *attempts);
 
