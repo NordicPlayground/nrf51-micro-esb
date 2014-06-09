@@ -456,6 +456,15 @@ uint32_t uesb_set_rf_channel(uint32_t channel)
     return UESB_SUCCESS;
 }
 
+uint32_t uesb_set_tx_power(uesb_tx_power_t tx_output_power)
+{
+    if(m_uesb_mainstate != UESB_STATE_IDLE) return UESB_ERROR_NOT_IDLE;
+    if ( m_config_local.tx_output_power == tx_output_power ) return UESB_SUCCESS;
+    m_config_local.tx_output_power = tx_output_power;
+    update_radio_parameters();
+    return UESB_SUCCESS;
+}
+
 void RADIO_IRQHandler()
 {
     if(NRF_RADIO->EVENTS_READY && (NRF_RADIO->INTENSET & RADIO_INTENSET_READY_Msk))
