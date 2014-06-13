@@ -3,10 +3,11 @@
 
 #define     UESB_SUCCESS                    0x0000
 
-// Mode related errors
+// State related errors
 #define     UESB_ERROR_NOT_INITIALIZED      0x0101
 #define     UESB_ERROR_ALREADY_INITIALIZED  0x0102
 #define     UESB_ERROR_NOT_IDLE             0x0103
+#define     UESB_ERROR_NOT_IN_RX_MODE       0x0104
 
 // Invalid parameter errors
 #define     UESB_ERROR_INVALID_PARAMETERS   0x0200

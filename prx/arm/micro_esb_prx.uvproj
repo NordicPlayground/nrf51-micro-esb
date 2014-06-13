@@ -359,7 +359,7 @@
             <useXO>0</useXO>
             <VariousControls>
               <MiscControls>--c99</MiscControls>
-              <Define>NRF51 UESB_DEBUG</Define>
+              <Define>NRF51</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\..\..\..\Include;..\..\common</IncludePath>
             </VariousControls>

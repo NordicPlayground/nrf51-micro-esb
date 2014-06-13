@@ -1,3 +1,15 @@
+/* Copyright (c) 2014 Nordic Semiconductor. All Rights Reserved.
+ *
+ * The information contained herein is property of Nordic Semiconductor ASA.
+ * Terms and conditions of usage are described in detail in NORDIC
+ * SEMICONDUCTOR STANDARD SOFTWARE LICENSE AGREEMENT.
+ *
+ * Licensees are granted free, non-transferable use of the information. NO
+ * WARRANTY of ANY KIND is provided. This heading must NOT be removed from
+ * the file.
+ *
+ */
+
 #ifndef __MICRO_ESB_H
 #define __MICRO_ESB_H
 
@@ -7,10 +19,10 @@
 #include "nrf51.h"
 #include "nrf51_bitfields.h"
 
-#define DEBUGPIN1   8
-#define DEBUGPIN2   9
-#define DEBUGPIN3   10
-#define DEBUGPIN4   11
+#define DEBUGPIN1   12
+#define DEBUGPIN2   13
+#define DEBUGPIN3   14
+#define DEBUGPIN4   15
 
 #ifdef  UESB_DEBUG
 #define DEBUG_PIN_SET(a)    (NRF_GPIO->OUTSET = (1 << (a)))
@@ -22,11 +34,11 @@
 
 // Hard coded parameters - change if necessary
 #define     UESB_CORE_MAX_PAYLOAD_LENGTH    32
-#define     UESB_CORE_TX_FIFO_SIZE          3
-#define     UESB_CORE_RX_FIFO_SIZE          3
+#define     UESB_CORE_TX_FIFO_SIZE          8
+#define     UESB_CORE_RX_FIFO_SIZE          8
 
 #define     UESB_SYS_TIMER                  NRF_TIMER2
-#define     UESB_SYS_TIMER_IRQ_Handler      TIMER2_IRQHandler    
+#define     UESB_SYS_TIMER_IRQ_Handler      TIMER2_IRQHandler 
 
 #define     UESB_PPI_TIMER_START            4
 #define     UESB_PPI_TIMER_STOP             5
@@ -74,8 +86,9 @@ typedef enum {
 } uesb_tx_power_t;
 
 typedef enum {
-    UESB_TXMODE_AUTO,       // Automatic TX mode - When the TX fifo is non-empty packets will be sent automatically when the radio is idle
-    UESB_TXMODE_MANUAL      // Manual TX mode - Packets will not be sent until uesb_start_tx() is called. Can be used to ensure consistent packet timing. 
+    UESB_TXMODE_AUTO,        // Automatic TX mode - When the TX fifo is non-empty and the radio is idle packets will be sent automatically.
+    UESB_TXMODE_MANUAL,      // Manual TX mode - Packets will not be sent until uesb_start_tx() is called. Can be used to ensure consistent packet timing. 
+    UESB_TXMODE_MANUAL_START // Manual start TX mode - Packets will not be sent until uesb_start_tx() is called, but transmission will continue automatically until the TX FIFO is empty.
 } uesb_tx_mode_t;
 
 // Internal state definition
@@ -89,11 +102,14 @@ typedef enum {
     UESB_STATE_PRX_SEND_ACK
 } uesb_mainstate_t;
 
+typedef void (*uesb_event_handler_t)(void);
+
 // Main UESB configuration struct, contains all radio parameters
 typedef struct
 {
     uesb_protocol_t         protocol;
     uesb_mode_t             mode;
+    uesb_event_handler_t    event_handler;
     
     // General RF parameters
     uesb_bitrate_t          bitrate;
@@ -121,15 +137,17 @@ typedef struct
     uint16_t                retransmit_count;
     
     // Control settings
-    uesb_tx_mode_t          tx_mode;                 
-    
+    uesb_tx_mode_t          tx_mode;   
+
+    uint8_t                 radio_irq_priority;
 }uesb_config_t;
 
 // Default radio parameters, roughly equal to nRF24L default parameters (except CRC which is set to 16-bit, and protocol set to DPL)
 #define UESB_DEFAULT_CONFIG {.mode                  = UESB_MODE_PTX,                    \
                              .protocol              = UESB_PROTOCOL_ESB_DPL,            \
+                             .event_handler         = 0,                                \
                              .rf_channel            = 2,                                \
-                             .payload_length        = 32,                               \
+                             .payload_length        = 61,                               \
                              .rf_addr_length        = 5,                                \
                              .bitrate               = UESB_BITRATE_2MBPS,               \
                              .crc                   = UESB_CRC_16BIT,                   \
@@ -147,7 +165,8 @@ typedef struct
                              .dynamic_ack_enabled   = 0,                                \
                              .retransmit_delay      = 250,                              \
                              .retransmit_count      = 3,                                \
-                             .tx_mode               = UESB_TXMODE_AUTO}
+                             .tx_mode               = UESB_TXMODE_AUTO,                 \
+                             .radio_irq_priority    = 1}
 
 enum uesb_event_type_t  {UESB_EVENT_TX_SUCCESS, UESB_EVENT_TX_FAILED, UESB_EVENT_RX_RECEIVED};
 
@@ -183,11 +202,11 @@ typedef struct
     uint32_t        count;    
 }uesb_payload_rx_fifo_t;
 
-typedef void (*uesb_event_handler_t)(void);
-
-uint32_t uesb_init(uesb_config_t *parameters, uesb_event_handler_t event_handler);
+uint32_t uesb_init(uesb_config_t *parameters);
 
 uint32_t uesb_disable(void);
+
+bool     uesb_is_idle(void);
 
 uint32_t uesb_write_tx_payload(uesb_payload_t *payload);
 
@@ -198,6 +217,8 @@ uint32_t uesb_read_rx_payload(uesb_payload_t *payload);
 uint32_t uesb_start_tx(void);
 
 uint32_t uesb_start_rx(void);
+
+uint32_t uesb_stop_rx(void);
 
 uint32_t uesb_get_tx_attempts(uint32_t *attempts);
 

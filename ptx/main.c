@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 Nordic Semiconductor. All Rights Reserved.
+/* Copyright (c) 2014 Nordic Semiconductor. All Rights Reserved.
  *
  * The information contained herein is property of Nordic Semiconductor ASA.
  * Terms and conditions of usage are described in detail in NORDIC
@@ -9,14 +9,6 @@
  * the file.
  *
  */
-
-/** @file
-* @brief Example template project.
-* @defgroup nrf_templates_example Example Template
-* @{
-* @ingroup nrf_examples_nrf6310
-*
-*/
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -39,19 +31,22 @@ void uesb_event_handler()
     if(rf_interrupts & UESB_INT_TX_SUCCESS_MSK)
     {   
     }
+    
     if(rf_interrupts & UESB_INT_TX_FAILED_MSK)
     {
         uesb_flush_tx();
     }
+    
     if(rf_interrupts & UESB_INT_RX_DR_MSK)
     {
         uesb_read_rx_payload(&rx_payload);
-        NRF_GPIO->OUTCLR = 0xFUL << 24;
-        NRF_GPIO->OUTSET = (uint32_t)((rx_payload.data[2] & 0x0F) << 24);
+        NRF_GPIO->OUTCLR = 0xFUL << 8;
+        NRF_GPIO->OUTSET = (uint32_t)((rx_payload.data[2] & 0x0F) << 8);
     }
+    
     uesb_get_tx_attempts(&tx_attempts);
-    NRF_GPIO->OUTCLR = 0xFUL << 28;
-    NRF_GPIO->OUTSET = (tx_attempts & 0x0F) << 28;
+    NRF_GPIO->OUTCLR = 0xFUL << 12;
+    NRF_GPIO->OUTSET = (tx_attempts & 0x0F) << 12;
 }
 
 int main(void)
@@ -59,7 +54,8 @@ int main(void)
     uint8_t rx_addr_p0[] = {0x12, 0x34, 0x56, 0x78, 0x9A};
     uint8_t rx_addr_p1[] = {0xBC, 0xDE, 0xF0, 0x12, 0x23};
     uint8_t rx_addr_p2   = 0x66;
-    nrf_gpio_range_cfg_output(8, 31);
+    
+    nrf_gpio_range_cfg_output(8, 15);
     
     NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
     NRF_CLOCK->TASKS_HFCLKSTART = 1;
@@ -73,8 +69,9 @@ int main(void)
     uesb_config.dynamic_ack_enabled = 0;
     uesb_config.protocol            = UESB_PROTOCOL_ESB_DPL;
     uesb_config.bitrate             = UESB_BITRATE_2MBPS;
+    uesb_config.event_handler       = uesb_event_handler;
     
-    uesb_init(&uesb_config, uesb_event_handler);
+    uesb_init(&uesb_config);
 
     uesb_set_address(UESB_ADDRESS_PIPE0, rx_addr_p0);
     uesb_set_address(UESB_ADDRESS_PIPE1, rx_addr_p1);
@@ -97,4 +94,3 @@ int main(void)
         nrf_delay_us(10000);
     }
 }
-
