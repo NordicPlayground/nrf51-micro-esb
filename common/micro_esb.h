@@ -232,4 +232,6 @@ uint32_t uesb_set_address(uesb_address_type_t address, const uint8_t *data_ptr);
 
 uint32_t uesb_set_rf_channel(uint32_t channel);
 
+uint32_t uesb_set_tx_power(uesb_tx_power_t tx_output_power);
+
 #endif
