@@ -417,6 +417,7 @@ uint32_t uesb_start_rx(void)
     if(m_uesb_mainstate != UESB_STATE_IDLE) return UESB_ERROR_NOT_IDLE;  
 
     NRF_RADIO->INTENCLR = 0xFFFFFFFF;
+    NRF_RADIO->EVENTS_DISABLED = 0;
     on_radio_disabled = on_radio_disabled_esb_dpl_rx;
     switch(m_config_local.protocol)
     {
@@ -455,6 +456,9 @@ uint32_t uesb_stop_rx(void)
 {
     if(m_uesb_mainstate == UESB_STATE_PRX)
     {
+        NRF_RADIO->SHORTS = 0;
+        NRF_RADIO->INTENCLR = 0xFFFFFFFF;
+        on_radio_disabled = NULL;
         NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->TASKS_DISABLE = 1;
         while(NRF_RADIO->EVENTS_DISABLED == 0);
@@ -567,7 +571,10 @@ void RADIO_IRQHandler()
         DEBUG_PIN_SET(DEBUGPIN2);
         
         // Call the correct on_radio_end function, depending on the current protocol state
-        on_radio_end();
+        if(on_radio_end)
+        {
+            on_radio_end();
+        }
     }
    
     if(NRF_RADIO->EVENTS_DISABLED && (NRF_RADIO->INTENSET & RADIO_INTENSET_DISABLED_Msk))
@@ -577,7 +584,10 @@ void RADIO_IRQHandler()
         DEBUG_PIN_SET(DEBUGPIN3);
         
         // Call the correct on_radio_disable function, depending on the current protocol state
-        on_radio_disabled();
+        if(on_radio_disabled)
+        {
+            on_radio_disabled();
+        }
     }
     
     DEBUG_PIN_CLR(DEBUGPIN1);
