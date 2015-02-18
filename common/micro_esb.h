@@ -28,7 +28,7 @@
 #define DEBUG_PIN_SET(a)    (NRF_GPIO->OUTSET = (1 << (a)))
 #define DEBUG_PIN_CLR(a)    (NRF_GPIO->OUTCLR = (1 << (a)))
 #else
-#define DEBUG_PIN_SET(a)    
+#define DEBUG_PIN_SET(a)
 #define DEBUG_PIN_CLR(a)
 #endif
 
@@ -38,7 +38,7 @@
 #define     UESB_CORE_RX_FIFO_SIZE          8
 
 #define     UESB_SYS_TIMER                  NRF_TIMER2
-#define     UESB_SYS_TIMER_IRQ_Handler      TIMER2_IRQHandler 
+#define     UESB_SYS_TIMER_IRQ_Handler      TIMER2_IRQHandler
 
 #define     UESB_PPI_TIMER_START            4
 #define     UESB_PPI_TIMER_STOP             5
@@ -63,43 +63,44 @@ typedef enum {
 } uesb_mode_t;
 
 typedef enum {
-    UESB_BITRATE_2MBPS = RADIO_MODE_MODE_Nrf_2Mbit, 
-    UESB_BITRATE_1MBPS = RADIO_MODE_MODE_Nrf_1Mbit, 
+    UESB_BITRATE_2MBPS = RADIO_MODE_MODE_Nrf_2Mbit,
+    UESB_BITRATE_1MBPS = RADIO_MODE_MODE_Nrf_1Mbit,
     UESB_BITRATE_250KBPS = RADIO_MODE_MODE_Nrf_250Kbit
 } uesb_bitrate_t;
 
 typedef enum {
-    UESB_CRC_16BIT = RADIO_CRCCNF_LEN_Two, 
-    UESB_CRC_8BIT  = RADIO_CRCCNF_LEN_One, 
+    UESB_CRC_16BIT = RADIO_CRCCNF_LEN_Two,
+    UESB_CRC_8BIT  = RADIO_CRCCNF_LEN_One,
     UESB_CRC_OFF   = RADIO_CRCCNF_LEN_Disabled
 } uesb_crc_t;
 
 typedef enum {
-    UESB_TX_POWER_4DBM     = RADIO_TXPOWER_TXPOWER_Pos4dBm, 
-    UESB_TX_POWER_0DBM     = RADIO_TXPOWER_TXPOWER_0dBm, 
-    UESB_TX_POWER_NEG4DBM  = RADIO_TXPOWER_TXPOWER_Neg4dBm, 
-    UESB_TX_POWER_NEG8DBM  = RADIO_TXPOWER_TXPOWER_Neg8dBm, 
-    UESB_TX_POWER_NEG12DBM = RADIO_TXPOWER_TXPOWER_Neg12dBm, 
-    UESB_TX_POWER_NEG16DBM = RADIO_TXPOWER_TXPOWER_Neg16dBm, 
-    UESB_TX_POWER_NEG20DBM = RADIO_TXPOWER_TXPOWER_Neg20dBm, 
+    UESB_TX_POWER_4DBM     = RADIO_TXPOWER_TXPOWER_Pos4dBm,
+    UESB_TX_POWER_0DBM     = RADIO_TXPOWER_TXPOWER_0dBm,
+    UESB_TX_POWER_NEG4DBM  = RADIO_TXPOWER_TXPOWER_Neg4dBm,
+    UESB_TX_POWER_NEG8DBM  = RADIO_TXPOWER_TXPOWER_Neg8dBm,
+    UESB_TX_POWER_NEG12DBM = RADIO_TXPOWER_TXPOWER_Neg12dBm,
+    UESB_TX_POWER_NEG16DBM = RADIO_TXPOWER_TXPOWER_Neg16dBm,
+    UESB_TX_POWER_NEG20DBM = RADIO_TXPOWER_TXPOWER_Neg20dBm,
     UESB_TX_POWER_NEG30DBM = RADIO_TXPOWER_TXPOWER_Neg30dBm
 } uesb_tx_power_t;
 
 typedef enum {
     UESB_TXMODE_AUTO,        // Automatic TX mode - When the TX fifo is non-empty and the radio is idle packets will be sent automatically.
-    UESB_TXMODE_MANUAL,      // Manual TX mode - Packets will not be sent until uesb_start_tx() is called. Can be used to ensure consistent packet timing. 
+    UESB_TXMODE_MANUAL,      // Manual TX mode - Packets will not be sent until uesb_start_tx() is called. Can be used to ensure consistent packet timing.
     UESB_TXMODE_MANUAL_START // Manual start TX mode - Packets will not be sent until uesb_start_tx() is called, but transmission will continue automatically until the TX FIFO is empty.
 } uesb_tx_mode_t;
 
 // Internal state definition
 typedef enum {
-    UESB_STATE_UNINITIALIZED, 
-    UESB_STATE_IDLE, 
-    UESB_STATE_PTX_TX, 
-    UESB_STATE_PTX_TX_ACK, 
+    UESB_STATE_UNINITIALIZED,
+    UESB_STATE_IDLE,
+    UESB_STATE_PTX_TX,
+    UESB_STATE_PTX_TX_ACK,
     UESB_STATE_PTX_RX_ACK,
     UESB_STATE_PRX,
-    UESB_STATE_PRX_SEND_ACK
+    UESB_STATE_PRX_SEND_ACK,
+    UESB_STATE_PRX_SEND_ACK_PAYLOAD
 } uesb_mainstate_t;
 
 typedef void (*uesb_event_handler_t)(void);
@@ -110,14 +111,14 @@ typedef struct
     uesb_protocol_t         protocol;
     uesb_mode_t             mode;
     uesb_event_handler_t    event_handler;
-    
+
     // General RF parameters
     uesb_bitrate_t          bitrate;
     uesb_crc_t              crc;
     uint8_t                 rf_channel;
     uint8_t                 payload_length;
     uint8_t                 rf_addr_length;
-    
+
     uesb_tx_power_t         tx_output_power;
     uint8_t                 tx_address[5];
     uint8_t                 rx_address_p0[5];
@@ -125,9 +126,9 @@ typedef struct
     uint8_t                 rx_address_p2;
     uint8_t                 rx_address_p3;
     uint8_t                 rx_address_p4;
-    uint8_t                 rx_address_p5; 
+    uint8_t                 rx_address_p5;
     uint8_t                 rx_address_p6;
-    uint8_t                 rx_address_p7; 
+    uint8_t                 rx_address_p7;
     uint8_t                 rx_pipes_enabled;
 
     // ESB specific features
@@ -135,9 +136,9 @@ typedef struct
     uint8_t                 dynamic_ack_enabled;
     uint16_t                retransmit_delay;
     uint16_t                retransmit_count;
-    
+
     // Control settings
-    uesb_tx_mode_t          tx_mode;   
+    uesb_tx_mode_t          tx_mode;
 
     uint8_t                 radio_irq_priority;
 }uesb_config_t;
@@ -191,7 +192,7 @@ typedef struct
     uesb_payload_t *payload_ptr[UESB_CORE_TX_FIFO_SIZE];
     uint32_t        entry_point;
     uint32_t        exit_point;
-    uint32_t        count;    
+    uint32_t        count;
 }uesb_payload_tx_fifo_t;
 
 typedef struct
@@ -199,7 +200,7 @@ typedef struct
     uesb_payload_t *payload_ptr[UESB_CORE_RX_FIFO_SIZE];
     uint32_t        entry_point;
     uint32_t        exit_point;
-    uint32_t        count;    
+    uint32_t        count;
 }uesb_payload_rx_fifo_t;
 
 uint32_t uesb_init(uesb_config_t *parameters);
@@ -211,6 +212,8 @@ bool     uesb_is_idle(void);
 uint32_t uesb_write_tx_payload(uesb_payload_t *payload);
 
 uint32_t uesb_write_tx_payload_noack(uesb_payload_t *payload);
+
+uint32_t uesb_write_ack_payload(uesb_payload_t *payload);
 
 uint32_t uesb_read_rx_payload(uesb_payload_t *payload);
 
