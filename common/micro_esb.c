@@ -349,7 +349,7 @@ static void start_tx_transaction()
     NVIC_ClearPendingIRQ(RADIO_IRQn);
     NVIC_EnableIRQ(RADIO_IRQn);
 
-    NRF_RADIO->EVENTS_ADDRESS = NRF_RADIO->EVENTS_PAYLOAD = 0;
+    NRF_RADIO->EVENTS_ADDRESS = NRF_RADIO->EVENTS_PAYLOAD = NRF_RADIO->EVENTS_DISABLED = 0;
     DEBUG_PIN_SET(DEBUGPIN4);
     NRF_RADIO->TASKS_TXEN  = 1;
 }
@@ -614,7 +614,10 @@ static void on_radio_disabled_esb_dpl_tx()
     UESB_SYS_TIMER->CC[0]       = m_wait_for_ack_timeout_us;
     UESB_SYS_TIMER->CC[1]       = m_config_local.retransmit_delay - 130;
     UESB_SYS_TIMER->TASKS_CLEAR = 1;
+    UESB_SYS_TIMER->EVENTS_COMPARE[0] = 0;
+    UESB_SYS_TIMER->EVENTS_COMPARE[1] = 0;
     NRF_PPI->CHENSET            = (1 << UESB_PPI_TIMER_START) | (1 << UESB_PPI_RX_TIMEOUT) | (1 << UESB_PPI_TIMER_STOP);
+    NRF_PPI->CHENCLR            = (1 << UESB_PPI_TX_START);
     NRF_RADIO->EVENTS_END       = 0;
     if(m_config_local.protocol == UESB_PROTOCOL_ESB)
     {
@@ -636,6 +639,7 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
     if(NRF_RADIO->EVENTS_END && NRF_RADIO->CRCSTATUS != 0)
     {
         UESB_SYS_TIMER->TASKS_STOP = 1;
+        NRF_PPI->CHENCLR = (1 << UESB_PPI_TX_START);
         m_interrupt_flags |= UESB_INT_TX_SUCCESS_MSK;
         m_last_tx_attempts = m_config_local.retransmit_count - m_retransmits_remaining + 1;
         tx_fifo_remove_last();
@@ -654,6 +658,7 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
         if(m_retransmits_remaining-- == 0)
         {
             UESB_SYS_TIMER->TASKS_STOP = 1;
+            NRF_PPI->CHENCLR = (1 << UESB_PPI_TX_START);
             // All retransmits are expended, and the TX operation is suspended
             m_interrupt_flags |= UESB_INT_TX_FAILED_MSK;
             m_last_tx_attempts = m_config_local.retransmit_count + 1;
@@ -662,14 +667,18 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
         }
         else
         {
-            UESB_SYS_TIMER->TASKS_START = 1;
             // We still have more retransmits left, and we should enter TX mode again as soon as the system timer reaches CC[1]
-            NRF_PPI->CHENSET = (1 << UESB_PPI_TX_START);
             NRF_RADIO->SHORTS = RADIO_SHORTS_COMMON | RADIO_SHORTS_DISABLED_RXEN_Msk;
             update_rf_payload_format(current_payload->length);
             NRF_RADIO->PACKETPTR = (uint32_t)m_tx_payload_buffer;
             on_radio_disabled = on_radio_disabled_esb_dpl_tx;
             m_uesb_mainstate = UESB_STATE_PTX_TX_ACK;
+            UESB_SYS_TIMER->TASKS_START = 1;
+            NRF_PPI->CHENSET = (1 << UESB_PPI_TX_START);
+            if(UESB_SYS_TIMER->EVENTS_COMPARE[1])
+            {
+                NRF_RADIO->TASKS_TXEN = 1;
+            }                 
         }
     }
 }
