@@ -10,17 +10,14 @@ The main benefits of this library over the official one are:
 
 The library can be used with or without a SoftDevice.
 
-KNOWN LIMITATIONS:
-- The PRX can not send ACK payloads, but the PTX can receive them (when using an nRF24L based PRX)
-
 Requirements
 ------------
-- nRF51 SDK version 5.1.0
+- nRF51 SDK version 7.2.0
 - nRF51822 Development kit
 
 The project may need modifications to work with later versions or other boards. 
 
-To compile it, clone the repository in the nrf51822/Board/nrf6310/ folder.
+To compile it, clone the repository in the /examples/proprietary_rf/ folder.
 
 About this project
 ------------------
