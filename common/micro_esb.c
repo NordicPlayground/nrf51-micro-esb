@@ -289,7 +289,7 @@ uint32_t uesb_disable(void)
 
 static void start_tx_transaction()
 {
-    static bool ack;
+    bool ack;
     m_last_tx_attempts = 1;
     // Prepare the payload
     current_payload = m_tx_fifo.payload_ptr[m_tx_fifo.exit_point];
@@ -731,7 +731,8 @@ static void on_radio_disabled_esb_dpl_tx_wait_for_ack()
 
 static void on_radio_disabled_esb_dpl_rx(void)
 {
-    static bool send_ack = false, set_rx_interrupt = false;
+    bool send_ack = false;
+    bool set_rx_interrupt = false;
     if(NRF_RADIO->CRCSTATUS != 0 && m_rx_fifo.count < UESB_CORE_RX_FIFO_SIZE)
     {
         send_ack = true;
@@ -749,7 +750,7 @@ static void on_radio_disabled_esb_dpl_rx(void)
                 if(++m_tx_fifo.exit_point >= UESB_CORE_RX_FIFO_SIZE) m_tx_fifo.exit_point = 0;
                 m_tx_fifo.count--;
 
-                // ACK payloads also require TX_DS (page 40 of the 'nRF24LE1_Product_Specification_rev1_6.pdf'.
+                // ACK payloads also require TX_DS (page 40 of the 'nRF24LE1_Product_Specification_rev1_6.pdf').
                 m_interrupt_flags |= UESB_INT_TX_SUCCESS_MSK;
             }
 
@@ -801,6 +802,7 @@ static void on_radio_disabled_esb_dpl_rx(void)
         NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->TASKS_DISABLE = 1;
         while(NRF_RADIO->EVENTS_DISABLED == 0);
+        NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->SHORTS = RADIO_SHORTS_COMMON | RADIO_SHORTS_DISABLED_TXEN_Msk;
         NRF_RADIO->TASKS_RXEN = 1;
     }
@@ -836,6 +838,7 @@ static void on_radio_end_sb_tx(void)
         NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_RADIO->TASKS_DISABLE = 1;
         while(!NRF_RADIO->EVENTS_DISABLED);
+        NRF_RADIO->EVENTS_DISABLED = 0;
         m_uesb_mainstate = UESB_STATE_IDLE;
         if(m_event_handler != 0) m_event_handler();
     }
