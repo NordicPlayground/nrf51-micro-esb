@@ -516,7 +516,7 @@ uint32_t uesb_flush_rx(void)
 {
     DISABLE_RF_IRQ;
     m_rx_fifo.count = 0;
-    m_rx_fifo.entry_point = 0;
+    m_rx_fifo.entry_point = m_rx_fifo.exit_point = 0;
     ENABLE_RF_IRQ;
     return UESB_SUCCESS;
 }
