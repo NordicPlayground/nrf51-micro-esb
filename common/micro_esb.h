@@ -50,6 +50,8 @@
 #define     UESB_INT_TX_FAILED_MSK          0x02
 #define     UESB_INT_RX_DR_MSK              0x04
 
+#define     UESB_PID_RESET_VALUE            0xFF
+
 // Configuration parameter definitions
 typedef enum {
     UESB_PROTOCOL_SB,       // Legacy ShockBurst mode - No ACK or retransmit functionality (CURRENTLY NOT IMPLEMENTED!)

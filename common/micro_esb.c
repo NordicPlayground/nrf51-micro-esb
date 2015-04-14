@@ -37,7 +37,7 @@ static volatile uint32_t        m_interrupt_flags       = 0;
 static uint32_t                 m_pid                   = 0;
 static volatile uint32_t        m_retransmits_remaining;
 static volatile uint32_t        m_last_tx_attempts;
-static volatile uint8_t         m_last_rx_packet_pid = 0xFF;
+static volatile uint8_t         m_last_rx_packet_pid = UESB_PID_RESET_VALUE;
 static volatile uint32_t        m_last_rx_packet_crc = 0xFFFFFFFF;
 static volatile uint32_t        m_wait_for_ack_timeout_us;
 
@@ -516,6 +516,7 @@ uint32_t uesb_flush_rx(void)
 {
     DISABLE_RF_IRQ;
     m_rx_fifo.count = 0;
+    m_last_rx_packet_pid = UESB_PID_RESET_VALUE;
     m_rx_fifo.entry_point = m_rx_fifo.exit_point = 0;
     ENABLE_RF_IRQ;
     return UESB_SUCCESS;
