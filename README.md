@@ -12,7 +12,7 @@ The library can be used with or without a SoftDevice.
 
 Requirements
 ------------
-- nRF51 SDK version 7.2.0
+- nRF51 SDK version 8.0.0
 - nRF51822 Development kit
 
 The project may need modifications to work with later versions or other boards. 
