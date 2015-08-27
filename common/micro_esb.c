@@ -294,6 +294,8 @@ static void start_tx_transaction()
     // Prepare the payload
     current_payload = m_tx_fifo.payload_ptr[m_tx_fifo.exit_point];
     m_pid = (m_pid + 1) % 4;
+    ack = current_payload->noack == 0 || m_config_local.dynamic_ack_enabled == 0;
+
     switch(m_config_local.protocol)
     {
         case UESB_PROTOCOL_SB:
@@ -321,7 +323,6 @@ static void start_tx_transaction()
             break;
 
         case UESB_PROTOCOL_ESB_DPL:
-            ack = current_payload->noack == 0 || m_config_local.dynamic_ack_enabled == 0;
             m_tx_payload_buffer[0] = current_payload->length;
             m_tx_payload_buffer[1] = m_pid << 1 | ((ack == 0 && m_config_local.dynamic_ack_enabled) ? 0x01 : 0x00);
             memcpy(&m_tx_payload_buffer[2], current_payload->data, current_payload->length);
@@ -736,7 +737,17 @@ static void on_radio_disabled_esb_dpl_rx(void)
     bool set_rx_interrupt = false;
     if(NRF_RADIO->CRCSTATUS != 0 && m_rx_fifo.count < UESB_CORE_RX_FIFO_SIZE)
     {
-        send_ack = true;
+        if (m_config_local.dynamic_ack_enabled == 0)
+	{
+	    send_ack = true;
+	}
+	else
+	{
+	    if (0 == (m_rx_payload_buffer[1] & 0x01))
+	    {
+	      send_ack = true;
+	    }
+	}
     }
     if(send_ack)
     {
