@@ -324,7 +324,7 @@ static void start_tx_transaction()
 
         case UESB_PROTOCOL_ESB_DPL:
             m_tx_payload_buffer[0] = current_payload->length;
-            m_tx_payload_buffer[1] = m_pid << 1 | ((ack == 0 && m_config_local.dynamic_ack_enabled) ? 0x01 : 0x00);
+            m_tx_payload_buffer[1] = m_pid << 1 | ((ack == 0 && m_config_local.dynamic_ack_enabled) ? 0x00 : 0x01);
             memcpy(&m_tx_payload_buffer[2], current_payload->data, current_payload->length);
             if(ack)
             {
@@ -743,7 +743,7 @@ static void on_radio_disabled_esb_dpl_rx(void)
 	}
 	else
 	{
-	    if (0 == (m_rx_payload_buffer[1] & 0x01))
+	    if (1 == (m_rx_payload_buffer[1] & 0x01))
 	    {
 	      send_ack = true;
 	    }
