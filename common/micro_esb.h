@@ -150,7 +150,7 @@ typedef struct
                              .protocol              = UESB_PROTOCOL_ESB_DPL,            \
                              .event_handler         = 0,                                \
                              .rf_channel            = 2,                                \
-                             .payload_length        = 61,                               \
+                             .payload_length        = UESB_CORE_MAX_PAYLOAD_LENGTH,     \
                              .rf_addr_length        = 5,                                \
                              .bitrate               = UESB_BITRATE_2MBPS,               \
                              .crc                   = UESB_CRC_16BIT,                   \
