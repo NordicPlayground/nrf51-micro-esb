@@ -54,7 +54,7 @@
 
 // Configuration parameter definitions
 typedef enum {
-    UESB_PROTOCOL_SB,       // Legacy ShockBurst mode - No ACK or retransmit functionality (CURRENTLY NOT IMPLEMENTED!)
+    UESB_PROTOCOL_SB,       // Legacy ShockBurst mode - No ACK or retransmit functionality
     UESB_PROTOCOL_ESB,      // Enhanced ShockBurst with fixed payload length
     UESB_PROTOCOL_ESB_DPL   // Enhanced ShockBurst with dynamic payload length
 } uesb_protocol_t;

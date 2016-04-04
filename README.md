@@ -1,6 +1,12 @@
 nrf51-micro-esb
 ==================
+DEPRECATED
+----------
+Unless legacy ShockBurst support is needed (no ACK, no retransmit), please use the nrf_esb library in nRF5_SDK v11 or later instead of this library. 
+The new official ESB library is based on micro-esb, but has received several improvements and been thoroughly tested. 
 
+Description
+-----------
 This project includes a library called micro_esb, which is a stripped down, simplified version of the Enhanced Shockburst protocol in the nRF51 SDK. 
 
 The main benefits of this library over the official one are:
