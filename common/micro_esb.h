@@ -61,7 +61,7 @@ typedef enum {
 
 typedef enum {
     UESB_MODE_PTX,          // Primary transmitter
-    UESB_MODE_PRX           // Primary receiver (CURRENTLY NOT IMPLEMENTED)
+    UESB_MODE_PRX           // Primary receiver
 } uesb_mode_t;
 
 typedef enum {
